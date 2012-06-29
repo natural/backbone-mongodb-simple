@@ -1,0 +1,66 @@
+assert = require 'assert'
+mongodb = require 'mongodb'
+fixtures = require './fixtures'
+Backbone = require 'backbone'
+
+
+personurl = 'mongodb://localhost:27017/refsource'
+placeurl = 'mongodb://localhost:27017/reftarget'
+
+
+
+
+Person = Backbone.Model.extend({
+  con: null
+  col: 'people'
+  ref: []
+
+
+})
+
+
+Place = Backbone.Model.extend({
+  con: null
+  col: 'place'
+  ref: ['operator']
+})
+
+
+describe 'connect both databases', ->
+  john = new Person name:'John Doe'
+  home = new Place name: 'Building 1A', operator: {'$ref': 'people', '$id':null, '$db':'people'}
+
+  before (done)->
+    john.connect personurl, (err, con)->
+      if err
+        assert 0
+      Person.prototype.con = con
+      home.connect placeurl, (err, con)->
+        if err
+          assert 0
+        Place.prototype.con = con
+        done()
+
+  it 'should allow creation of a person doc', (done)->
+
+    john.save {},
+      success:->
+        console.log 'person saved', john.attributes
+        done()
+      error:->
+        assert 0
+
+  it 'should allow creation of a place doc', (done)->
+    home.get('operator')['$id'] = john.id
+    home.save {},
+      success: ->
+        home.fetch success: ->
+          console.log 'place saved', home.attributes, home.attributes.operator instanceof mongodb.DBRef
+          done()
+      error: ->
+        assert 0
+
+  it 'should allow cleanup', (done)->
+    home.destroy success:->
+      john.destroy success:->
+        done()
