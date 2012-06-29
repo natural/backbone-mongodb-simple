@@ -111,7 +111,8 @@ find = (callback)->
 
 
 findOne = (query, qoptions, options)->
-  error = options?.error or ->
+  options = options or {}
+  error = options.error or ->
   model = if @cid? then @constructor else @
 
   @withCollection (err, collection)->
@@ -126,7 +127,7 @@ findOne = (query, qoptions, options)->
         error new Error(msg)
       else
         data._id = data._id.toString()
-        (options?.success or ->) new model(data)
+        (options.success or ->) new model(data)
 
 
 getProp = (obj, name)->
@@ -156,7 +157,8 @@ methods =
 
 install = exports.install = (Backbone)->
   Backbone.sync = (method, model, options)->
-    error = options?.error or ->
+    options = options or {}
+    error = options.error or ->
 
     if not model.con
       error new Error('sync without connection')
@@ -169,7 +171,7 @@ install = exports.install = (Backbone)->
         if err
           error err
         else
-          (options?.success or ->) results
+          (options.success or ->) results
     else
       error new Error("Unknown sync method #{method}")
 
@@ -193,8 +195,9 @@ install = exports.install = (Backbone)->
         callback err, con
 
     disconnect: (options, callback)->
+      options = options or {}
       self = @
-      self.con.close options?.force or false, (err, result)->
+      self.con.close options.force or false, (err, result)->
         self.con = null
         callback err, result
 
@@ -202,11 +205,43 @@ install = exports.install = (Backbone)->
 
   objprops = _.extend {}, sharedprops,
     idAttribute: '_id'
+
     oid: ->
       if @id?.toHexString?
         @id
       else if @id?
         new mongodb.ObjectID @id
+
+    modify: (attributes, options)->
+      # this method is like set + save, except that we only save
+      # the given values (unless others are pending, and in that case
+      # we just save everything).
+      options = options or {}
+      changed = {}
+      self = @
+      error = options.error or ->
+      success = options.success or ->
+
+      for key, value of attributes
+        do (key, value)->
+          old = self.get key
+          if old != value
+            changed[key] = value
+            self.set key, value, silent: true
+
+      if _.keys(changed).length and not self.isNew()
+        self.withCollection (err, collection)->
+          if err
+            error err
+          else
+            collection.update {_id: self.oid()},
+              {$set: changed},
+              {safe: true, upsert: false},
+              (err)->
+                if err
+                  error err
+                else
+                  success self, changed
 
   extend = _.extend
   extend Backbone.Collection.prototype, objprops

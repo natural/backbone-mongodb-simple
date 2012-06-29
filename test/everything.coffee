@@ -194,6 +194,8 @@ make = (key, url)->
 
     it 'should allow updates to an existing document', (done)->
       visiting.set 'address', ['456', 'Oak Lane', 'Othertown, USA', 45678]
+      visiting.set x: 0
+
       visiting.save {},
         error: -> assert 0
         success: ->
@@ -201,6 +203,22 @@ make = (key, url)->
             error: -> assert 0
             success: ->
               assert.equal visiting.get('address')[0], '456'
+              assert.equal visiting.get('x'), 0
+              done()
+
+    it 'should allow save of only changed attributes', (done)->
+      attrs = {x:0, y:1, z:[1,2,3]}
+      visiting.modify attrs,
+        error: -> assert 0
+        success: (model, changed)->
+          assert.equal changed.y, 1
+          assert not changed.x?
+          visiting.fetch
+            error: -> assert 0
+            success: ->
+              assert.equal visiting.get('y'), 1
+              assert.equal visiting.get('x'), 0
+              assert.equal visiting.get('z')[2], 3
               done()
 
     it 'should allow delete of an existing document', (done)->
