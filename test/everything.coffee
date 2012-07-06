@@ -41,7 +41,7 @@ make = (key, url)->
 
     it 'should allow static find', (done)->
       assert.equal typeof Person.find, 'function'
-      Person.find (err, models)->
+      Person.find {}, {}, (err, models)->
         assert models.length == 2
         ids = (obj.id for obj in models)
         assert walt.id in ids
@@ -85,7 +85,7 @@ make = (key, url)->
 
     it 'should allow instance find via static', (done)->
       assert.equal typeof jessie.find, 'function'
-      jessie.find (err, models)->
+      jessie.find {}, {}, (err, models)->
         assert models.length == 1
         assert jessie.id in (obj.id for obj in models)
         done()
@@ -127,7 +127,7 @@ make = (key, url)->
 
     it 'should allow instance find', (done)->
       assert.equal typeof skyler.find, 'function'
-      skyler.find (err, models)->
+      skyler.find {}, {}, (err, models)->
         assert models.length == 1
         assert skyler.id in (obj.id for obj in models)
         done()

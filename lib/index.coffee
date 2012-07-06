@@ -10,6 +10,9 @@ exports.connect = (url, options, callback)->
     callback err, con
 
 
+exports.ObjectID = mongodb.ObjectID
+
+
 toStrings = (obj, convert=['_id'])->
   convert.map (key)->
     obj[key] = obj[key].toString()
@@ -45,11 +48,11 @@ create = (model, callback)->
 
 
 read = (model, callback)->
-  if model?.id?
-    model.withCollection (err, collection)->
-      if err
-        callback err
-      else
+  model.withCollection (err, collection)->
+    if err
+      callback err
+    else
+      if model?.id?
         collection.findOne {_id: model.oid()}, {}, (err, doc)->
           if err
             callback err
@@ -58,10 +61,6 @@ read = (model, callback)->
             callback new Error(msg)
           else
             callback null, toStrings(doc)
-  else
-    model.withCollection (err, collection)->
-      if err
-        callback err
       else
         collection.find().toArray (err, results)->
           if err
@@ -95,13 +94,16 @@ destroy = (model, callback)->
       collection.remove {_id: model.oid()}, callback
 
 
-find = (callback)->
+find = (query, qoptions, callback)->
+  options = options or {}
+  qoptions = qoptions or {}
   model = if @cid? then @constructor else @
+
   @withCollection (err, collection)->
     if err
       callback err
     else
-      collection.find().toArray (err, results)->
+      collection.find(query, qoptions).toArray (err, results)->
         if err
           callback err
         else
@@ -140,10 +142,12 @@ getProp = (obj, name)->
 withCollection = (callback)->
   con = getProp @, 'con'
   if not con
-    throw new Error('no connection')
+    return callback new Error('no connection')
+
   col = getProp @, 'col'
   if not col
-    throw new Error('no collection')
+    return callback new Error('no collection')
+
   con.collection col, (err, collection)->
     callback err, collection
 
@@ -162,6 +166,7 @@ install = exports.install = (Backbone)->
 
     if not model.con
       error new Error('sync without connection')
+
     if not model.col
       error new Error('sync without collection')
 
@@ -174,7 +179,6 @@ install = exports.install = (Backbone)->
           (options.success or ->) results
     else
       error new Error("Unknown sync method #{method}")
-
 
   sharedprops =
     con: null # mongodb connection
@@ -248,5 +252,3 @@ install = exports.install = (Backbone)->
   extend Backbone.Model.prototype, objprops
   extend Backbone.Collection, staticprops
   extend Backbone.Model, staticprops
-
-
